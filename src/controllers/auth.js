@@ -8,7 +8,7 @@ module.exports = {
   signup: async (req, res, next) => {
     try {
       const id = uuidv4()
-      const {username, email, password} = req.body
+      const {username, email, password, confirmation} = req.body
       const result = await checkEmail(email)
       if (result.length > 0) return response(res, 401, null, {message: 'Email Already exist!!'})
       bcrypt.genSalt(10, function (err, salt) {
@@ -18,6 +18,7 @@ module.exports = {
             username,
             email,
             role: 'user',
+            confirmation: confirmation || 0,
             password: hash,
           }
           const resultInsert = await insertUser(data)
@@ -34,6 +35,7 @@ module.exports = {
       const { email, password } = req.body
       const result = await checkEmail(email)
       if (result.length < 1) return response(res, 401, null, { message: 'Email Unlisted!!' })
+      if (result[0].confirmation === 0) return response(res, 401, null, { message: 'Your account has not been confirmed by Admin' })
       const user = result[0]
       bcrypt.compare(password, user.password, function (err, resCheck) {
         if (!resCheck) return response(res, 401, null, { message: 'Password Wrong!!' })
@@ -42,6 +44,7 @@ module.exports = {
         const payload = {
           userId: user.id,
           email: user.email,
+          role: user.role
         }
         jwt.sign(payload, process.env.SECRET_KEY, { expiresIn: '5h' }, function (err, token) {
           user.token = token
